@@ -3,7 +3,9 @@ import text from "./text.txt"
 
 const server = Bun.serve({
 	port: 3535,
-	fetch(req){
+	fetch(req: Request){
+	    console.log(req.url);
+
 		const body = figlet.textSync("Bun!");
 
 		return new Response(body);
