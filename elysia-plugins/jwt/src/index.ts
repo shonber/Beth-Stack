@@ -2,8 +2,21 @@ import { Elysia, t } from 'elysia'
 import { cookie } from '@elysiajs/cookie'
 import { jwt } from '@elysiajs/jwt'
 import { serverTiming } from '@elysiajs/server-timing'
+import { swagger } from '@elysiajs/swagger'
 
 const app = new Elysia()
+    .use(swagger({
+        documentation: {
+            tags: [
+              { name: 'App', description: 'General endpoints' },
+              { name: 'Auth', description: 'Authentication endpoints' }
+            ],
+            info: {
+                title: 'Elysia Documentation',
+                version: '1.0.0'
+            }
+          }
+    }))
     .use(
         jwt({
             name: 'loginJWT',
@@ -15,14 +28,37 @@ const app = new Elysia()
     )
     .use(cookie())
     .use(serverTiming())
-    .get('/sign/:name', async ({ loginJWT, cookie, setCookie, params }) => {
-        setCookie('auth', await loginJWT.sign(params), {
-            httpOnly: true,
-            maxAge: 4 * 86400,
-        })
 
-        return `Sign in as ${cookie.auth}`
-    })
+    .group('/auth', app => app
+        .get('/sign/:name', 
+        async ({ loginJWT, cookie, setCookie, params }) => 
+        {
+            setCookie('auth', await loginJWT.sign(params), {
+                httpOnly: true,
+                maxAge: 4 * 86400,
+            })
+    
+            return `Sign in as ${cookie.auth}`
+        },
+        {
+            detail: {
+                tags: ['Auth']
+            }
+        })
+        .get('/logout', async ({ cookie: {auth}, params }) => {
+            try {
+                auth.remove();
+                return `logged out`
+            } catch (error) {
+                return `error`
+            }
+        },
+        {
+            detail: {
+                tags: ['Auth']
+            }
+        })
+    )
     .get('/profile', async ({ loginJWT, set, cookie: { auth } }) => {
         const profile = await loginJWT.verify(auth)
         if (!profile) {
@@ -31,7 +67,13 @@ const app = new Elysia()
         }
 
         return `Hello ${profile.name}`;
+    },
+    {
+        detail: {
+            tags: ['App']
+        }
     })
+    .get('/', () => "Home")
     .listen(8080)
 
 console.log(
